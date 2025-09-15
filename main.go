@@ -26,6 +26,19 @@ var (
 	workDir string
 )
 
+const asciiart = `+---------------------------+
+|                           |
+|      FTC HELPER           |
+|                           |
+|  [Image of a box of      |
+|   macaroni and sauce]     |
+|                           |
+|  Delicious one-pan meal   |
+|                           |
+|     NET WT. 5.9 OZ.       |
+|                           |
++---------------------------+`
+
 // Main command
 var rootCmd = &cobra.Command{
 	Use:   "ftc-helper",
@@ -52,6 +65,7 @@ func main() {
 }
 
 func init() {
+	fmt.Println(asciiart)
 	cobra.OnInitialize(initConfig)
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.ftc-helper.yaml)")
 	rootCmd.PersistentFlags().StringP("work-dir", "w", "", "working directory for projects")
