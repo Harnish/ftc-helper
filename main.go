@@ -3,6 +3,7 @@ package main
 import (
 	"archive/zip"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -162,7 +163,7 @@ var initCmd = &cobra.Command{
 			fmt.Println("Error writing to temp file:", err)
 			return
 		}
-		
+
 		// Unzip the file
 		fmt.Println("Extracting files...")
 		if err := extractZip(zipFile.Name(), projectPath); err != nil {
@@ -246,6 +247,48 @@ func extractZip(src, dest string) error {
 	return nil
 }
 
+// findAndroidStudioExe tries to find the Android Studio launcher on Windows.
+// Order: ANDROID_STUDIO_PATH env var, viper config "android_studio_path", common install paths.
+func findAndroidStudioExe() (string, error) {
+	// 1. env var override
+	if p := os.Getenv("ANDROID_STUDIO_PATH"); p != "" {
+		if _, err := os.Stat(p); err == nil {
+			return p, nil
+		}
+	}
+
+	// 2. viper config (if user set it in config file)
+	if v := viper.GetString("android_studio_path"); v != "" {
+		if _, err := os.Stat(v); err == nil {
+			return v, nil
+		}
+	}
+
+	// 3. common install locations
+	programFiles := []string{os.Getenv("ProgramFiles"), os.Getenv("ProgramFiles(x86)"), "C:\\Program Files", "C:\\Program Files (x86)"}
+	candidates := []string{
+		"Android\\Android Studio\\bin\\studio64.exe",
+		"Android\\Android Studio\\bin\\studio.exe",
+		"Android\\Android Studio\\bin\\launcher.exe",
+		"JetBrains\\AndroidStudio\\bin\\studio64.exe",
+		"JetBrains\\AndroidStudio\\bin\\studio.exe",
+	}
+
+	for _, base := range programFiles {
+		if base == "" {
+			continue
+		}
+		for _, c := range candidates {
+			p := filepath.Join(base, c)
+			if _, err := os.Stat(p); err == nil {
+				return p, nil
+			}
+		}
+	}
+
+	return "", errors.New("Could not find Android Studio executable. Set ANDROID_STUDIO_PATH or android_studio_path in config.")
+}
+
 // Mode 3: Launch Project
 var launchCmd = &cobra.Command{
 	Use:   "launch [project_name]",
@@ -264,20 +307,41 @@ var launchCmd = &cobra.Command{
 		switch runtime.GOOS {
 		case "darwin": // macOS
 			launchCmd = exec.Command("open", "-a", "Android Studio.app", projectPath)
+			launchCmd.Stdout = os.Stdout
+			launchCmd.Stderr = os.Stderr
+			if err := launchCmd.Start(); err != nil {
+				fmt.Println("Error launching Android Studio on macOS:", err)
+			} else {
+				fmt.Printf("Launched '%s' in Android Studio (pid %d)\n", projectName, launchCmd.Process.Pid)
+			}
+			return
 		case "linux":
 			launchCmd = exec.Command("android-studio", projectPath)
+			launchCmd.Stdout = os.Stdout
+			launchCmd.Stderr = os.Stderr
+			if err := launchCmd.Start(); err != nil {
+				fmt.Println("Error launching Android Studio on Linux:", err)
+			} else {
+				fmt.Printf("Launched '%s' in Android Studio (pid %d)\n", projectName, launchCmd.Process.Pid)
+			}
+			return
 		case "windows":
-			launchCmd = exec.Command("cmd", "/c", "start", "android-studio", projectPath)
+			exePath, err := findAndroidStudioExe()
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+			launchCmd = exec.Command(exePath, projectPath)
+			// Start non-blocking so this CLI can return immediately
+			if err := launchCmd.Start(); err != nil {
+				fmt.Println("Error launching Android Studio on Windows:", err)
+			} else {
+				fmt.Printf("Launched '%s' in Android Studio (pid %d) using '%s'\n", projectName, launchCmd.Process.Pid, exePath)
+			}
+			return
 		default:
 			fmt.Println("Unsupported operating system for launching Android Studio.")
 			return
-		}
-
-		fmt.Printf("Launching '%s' in Android Studio...\n", projectName)
-		launchCmd.Stdout = os.Stdout
-		launchCmd.Stderr = os.Stderr
-		if err := launchCmd.Run(); err != nil {
-			fmt.Println("Error launching Android Studio:", err)
 		}
 	},
 }
