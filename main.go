@@ -8,9 +8,12 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 
@@ -60,6 +63,7 @@ func init() {
 	rootCmd.AddCommand(pullCmd)
 	rootCmd.AddCommand(pushCmd)
 	rootCmd.AddCommand(projectsCmd)
+	rootCmd.AddCommand(downloadStudioCmd)
 
 	initCmd.Flags().StringP("project", "p", "", "Name of the new project directory")
 	initCmd.Flags().StringP("git", "g", "", "Git repository URL to set up as remote")
@@ -441,4 +445,129 @@ var projectsCmd = &cobra.Command{
 			fmt.Println("No active projects found.")
 		}
 	},
+}
+
+// download-studio: fetch the latest Android Studio installer for the current OS
+var downloadStudioCmd = &cobra.Command{
+	Use:   "download-studio",
+	Short: "Download the latest Android Studio installer for your OS",
+	Run: func(cmd *cobra.Command, args []string) {
+		out, _ := cmd.Flags().GetString("out")
+
+		platform := detectStudioPlatform()
+		if platform == "" {
+			fmt.Println("Unsupported OS for automatic Android Studio download")
+			return
+		}
+
+		fmt.Printf("Looking up latest Android Studio download for %s...\n", platform)
+		downloadURL, err := findLatestAndroidStudioURL(platform)
+		if err != nil {
+			fmt.Println("Error finding download URL:", err)
+			return
+		}
+
+		fmt.Println("Found:", downloadURL)
+
+		// Determine output path
+		var outPath string
+		if out != "" {
+			outPath = out
+		} else {
+			// default to current dir with filename from URL
+			u, _ := url.Parse(downloadURL)
+			outPath = path.Base(u.Path)
+		}
+
+		fmt.Printf("Downloading to %s...\n", outPath)
+		resp, err := http.Get(downloadURL)
+		if err != nil {
+			fmt.Println("Download error:", err)
+			return
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			fmt.Printf("Download failed: status %d\n", resp.StatusCode)
+			return
+		}
+
+		f, err := os.Create(outPath)
+		if err != nil {
+			fmt.Println("Error creating file:", err)
+			return
+		}
+		defer f.Close()
+
+		_, err = io.Copy(f, resp.Body)
+		if err != nil {
+			fmt.Println("Error writing file:", err)
+			return
+		}
+
+		fmt.Println("Download complete:", outPath)
+	},
+}
+
+func init() {
+	downloadStudioCmd.Flags().StringP("out", "o", "", "Output path for the downloaded installer")
+}
+
+// detectStudioPlatform returns the platform string used on developer.android.com
+func detectStudioPlatform() string {
+	switch runtime.GOOS {
+	case "windows":
+		return "windows"
+	case "darwin":
+		return "mac"
+	case "linux":
+		return "linux"
+	default:
+		return ""
+	}
+}
+
+// findLatestAndroidStudioURL does a simple fetch of the Android Studio page and tries to extract a download URL for the platform.
+func findLatestAndroidStudioURL(platform string) (string, error) {
+	resp, err := http.Get("https://developer.android.com/studio")
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	// Look for URLs that point to archives/installer files. This is a heuristic and may need updates.
+	// Examples: https://redirector.gvt1.com/edgedl/android/studio/install/2023.1.1.15/android-studio-2023.1.1.15-windows.zip
+	re := regexp.MustCompile(`https?://[\w\-./]+android-studio[\w\-.]*(?:windows|mac|mac-arm|linux)[\w\-./]*\.(zip|exe|dmg|tar\.gz)`)
+	matches := re.FindAllString(string(body), -1)
+	if len(matches) == 0 {
+		// fallback: broader match for studio installer urls
+		re2 := regexp.MustCompile(`https?://[\w\-./]+android/studio[\w\-./]+\.(zip|exe|dmg|tar.gz)`)
+		matches = re2.FindAllString(string(body), -1)
+	}
+
+	if len(matches) == 0 {
+		return "", errors.New("no download URLs found on the Android Studio page")
+	}
+
+	// Prefer a match containing the platform word
+	for _, m := range matches {
+		lower := strings.ToLower(m)
+		if platform == "mac" && (strings.Contains(lower, "mac") || strings.Contains(lower, "dmg")) {
+			return m, nil
+		}
+		if platform == "windows" && (strings.Contains(lower, "windows") || strings.HasSuffix(lower, ".exe") || strings.HasSuffix(lower, ".zip")) {
+			return m, nil
+		}
+		if platform == "linux" && (strings.Contains(lower, "linux") || strings.HasSuffix(lower, ".tar.gz") || strings.HasSuffix(lower, ".zip")) {
+			return m, nil
+		}
+	}
+
+	// If no platform-specific match, return the first match
+	return matches[0], nil
 }
