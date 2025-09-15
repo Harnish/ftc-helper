@@ -19,7 +19,7 @@ Our goal is to make the FTC development experience as smooth and efficient as po
 
 Ready to give it a try? Here's how to get started with FTC Helper:
 
-1.  **Download the tool**: Head over to our [releases page](https://github.com/your-username/ftc-helper-gemini/releases) and download the latest version of `ftc-helper.exe`.
+1.  **Download the tool**: Head over to our [releases page](https://github.com/Harnish/ftc-helper/releases) and download the latest version of `ftc-helper.exe`.
 
 2.  **Install it on your system**: For easy access, place the `ftc-helper.exe` file in a directory that is part of your system's PATH.
 
@@ -37,4 +37,4 @@ Ready to give it a try? Here's how to get started with FTC Helper:
     ftc-helper launch my-awesome-robot
     ```
 
-We hope you find FTC Helper to be a valuable addition to your FTC toolkit. If you have any questions, feedback, or suggestions, please don't hesitate to reach out to us on our [GitHub repository](https://github.com/your-username/ftc-helper-gemini/issues).
+We hope you find FTC Helper to be a valuable addition to your FTC toolkit. If you have any questions, feedback, or suggestions, please don't hesitate to reach out to us on our [GitHub repository](https://github.com/Harnish/ftc-helper/issues).

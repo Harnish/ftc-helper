@@ -12,7 +12,7 @@ FTC Helper is a command-line interface (CLI) tool designed to streamline the dev
 
 ## Installation
 
-1.  **Download the executable**: Grab the latest version of `ftc-helper.exe` from the [releases page](https://github.com/your-username/ftc-helper-gemini/releases).
+1.  **Download the executable**: Grab the latest version of `ftc-helper.exe` from the [releases page](https://github.com/Harnish/ftc-helper/releases).
 2.  **Place it in your PATH**: To use it from anywhere on your system, place the executable in a directory that is included in your system's PATH environment variable.
 
 ## Usage
@@ -81,7 +81,7 @@ You can also specify the working directory on the command line using the `--work
 
 ## Contributing
 
-Contributions are welcome! If you have any ideas, suggestions, or bug reports, please open an issue on the [GitHub repository](https://github.com/your-username/ftc-helper-gemini/issues).
+Contributions are welcome! If you have any ideas, suggestions, or bug reports, please open an issue on the [GitHub repository](https://github.com/Harnish/ftc-helper/issues).
 
 ## License
 
