@@ -2,6 +2,9 @@
 
 FTC Helper is a command-line interface (CLI) tool designed to streamline the development process for FIRST Tech Challenge (FTC) robotics projects. It provides a set of commands to automate common tasks such as creating new projects, managing versions, and interacting with Git repositories.
 
+## Quickstat guide 
+[QUICKSTART.md](QUICKSTART.md)
+
 ## Features
 
 - **List available FTC releases**: View a list of all available FTC Robot Controller versions from the official GitHub repository.
