@@ -205,9 +205,8 @@ var initCmd = &cobra.Command{
 		}
 
 		// Git setup
-		//Full hack removing the v from version
-		subDir1 := strings.Replace(subDir, "v", "", 1)
-		teamCodePath := filepath.Join(subDir1, "TeamCode", "src", "main", "java", "org", "firstinspires", "ftc", "teamcode")
+
+		teamCodePath := filepath.Join(projectPath, "TeamCode", "src", "main", "java", "org", "firstinspires", "ftc", "teamcode")
 		fmt.Println("Initializing git repository...")
 		cmdGit := exec.Command("git", "init")
 		cmdGit.Dir = teamCodePath
