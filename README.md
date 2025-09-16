@@ -71,6 +71,33 @@ Lists all active local projects.
 ftc-helper projects
 ```
 
+#### `download-studio`
+
+Downloads the latest Android Studio installer for your OS. The command attempts to locate the correct installer for your platform and saves it to the current directory unless you provide `--out`.
+
+```bash
+ftc-helper download-studio
+ftc-helper download-studio --out C:\Downloads\android-studio-installer.exe
+```
+
+Notes:
+- On Windows the tool prefers `.msi` installers when available; fallbacks include `.exe` or `.zip`.
+- You can override the Android Studio path used by `launch` with the `ANDROID_STUDIO_PATH` environment variable or by setting `android_studio_path` in `$HOME/.ftc-helper.yaml`.
+
+#### `download-git`
+
+Downloads the latest Git for Windows installer (prefers 64-bit) by querying the Git for Windows releases on GitHub. Use `--out` to control the output filename.
+
+```bash
+ftc-helper download-git
+ftc-helper download-git --out C:\Downloads\Git-2.51.0-64-bit.exe
+```
+
+Notes:
+- This command uses the GitHub Releases API and may be subject to rate limits for unauthenticated requests.
+- If you need a specific variant, download directly from the Git for Windows releases page and use the `--out` flag to save it via the tool.
+
+
 ### Configuration
 
 FTC Helper uses a configuration file located at `$HOME/.ftc-helper.yaml` to store settings. The following settings are available:
