@@ -3,13 +3,17 @@ package main
 import (
 	"archive/zip"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 
@@ -21,6 +25,19 @@ var (
 	cfgFile string
 	workDir string
 )
+
+const asciiart = `+---------------------------+
+|                           |
+|      FTC HELPER           |
+|                           |
+|  [Image of a box of      |
+|   macaroni and sauce]     |
+|                           |
+|  Delicious one-pan meal   |
+|                           |
+|     NET WT. 5.9 OZ.       |
+|                           |
++---------------------------+`
 
 // Main command
 var rootCmd = &cobra.Command{
@@ -48,6 +65,7 @@ func main() {
 }
 
 func init() {
+	fmt.Println(asciiart)
 	cobra.OnInitialize(initConfig)
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.ftc-helper.yaml)")
 	rootCmd.PersistentFlags().StringP("work-dir", "w", "", "working directory for projects")
@@ -59,6 +77,7 @@ func init() {
 	rootCmd.AddCommand(pullCmd)
 	rootCmd.AddCommand(pushCmd)
 	rootCmd.AddCommand(projectsCmd)
+	rootCmd.AddCommand(downloadStudioCmd)
 
 	initCmd.Flags().StringP("project", "p", "", "Name of the new project directory")
 	initCmd.Flags().StringP("git", "g", "", "Git repository URL to set up as remote")
@@ -162,7 +181,7 @@ var initCmd = &cobra.Command{
 			fmt.Println("Error writing to temp file:", err)
 			return
 		}
-		
+
 		// Unzip the file
 		fmt.Println("Extracting files...")
 		if err := extractZip(zipFile.Name(), projectPath); err != nil {
@@ -246,6 +265,48 @@ func extractZip(src, dest string) error {
 	return nil
 }
 
+// findAndroidStudioExe tries to find the Android Studio launcher on Windows.
+// Order: ANDROID_STUDIO_PATH env var, viper config "android_studio_path", common install paths.
+func findAndroidStudioExe() (string, error) {
+	// 1. env var override
+	if p := os.Getenv("ANDROID_STUDIO_PATH"); p != "" {
+		if _, err := os.Stat(p); err == nil {
+			return p, nil
+		}
+	}
+
+	// 2. viper config (if user set it in config file)
+	if v := viper.GetString("android_studio_path"); v != "" {
+		if _, err := os.Stat(v); err == nil {
+			return v, nil
+		}
+	}
+
+	// 3. common install locations
+	programFiles := []string{os.Getenv("ProgramFiles"), os.Getenv("ProgramFiles(x86)"), "C:\\Program Files", "C:\\Program Files (x86)"}
+	candidates := []string{
+		"Android\\Android Studio\\bin\\studio64.exe",
+		"Android\\Android Studio\\bin\\studio.exe",
+		"Android\\Android Studio\\bin\\launcher.exe",
+		"JetBrains\\AndroidStudio\\bin\\studio64.exe",
+		"JetBrains\\AndroidStudio\\bin\\studio.exe",
+	}
+
+	for _, base := range programFiles {
+		if base == "" {
+			continue
+		}
+		for _, c := range candidates {
+			p := filepath.Join(base, c)
+			if _, err := os.Stat(p); err == nil {
+				return p, nil
+			}
+		}
+	}
+
+	return "", errors.New("Could not find Android Studio executable. Set ANDROID_STUDIO_PATH or android_studio_path in config.")
+}
+
 // Mode 3: Launch Project
 var launchCmd = &cobra.Command{
 	Use:   "launch [project_name]",
@@ -264,20 +325,41 @@ var launchCmd = &cobra.Command{
 		switch runtime.GOOS {
 		case "darwin": // macOS
 			launchCmd = exec.Command("open", "-a", "Android Studio.app", projectPath)
+			launchCmd.Stdout = os.Stdout
+			launchCmd.Stderr = os.Stderr
+			if err := launchCmd.Start(); err != nil {
+				fmt.Println("Error launching Android Studio on macOS:", err)
+			} else {
+				fmt.Printf("Launched '%s' in Android Studio (pid %d)\n", projectName, launchCmd.Process.Pid)
+			}
+			return
 		case "linux":
 			launchCmd = exec.Command("android-studio", projectPath)
+			launchCmd.Stdout = os.Stdout
+			launchCmd.Stderr = os.Stderr
+			if err := launchCmd.Start(); err != nil {
+				fmt.Println("Error launching Android Studio on Linux:", err)
+			} else {
+				fmt.Printf("Launched '%s' in Android Studio (pid %d)\n", projectName, launchCmd.Process.Pid)
+			}
+			return
 		case "windows":
-			launchCmd = exec.Command("cmd", "/c", "start", "android-studio", projectPath)
+			exePath, err := findAndroidStudioExe()
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+			launchCmd = exec.Command(exePath, projectPath)
+			// Start non-blocking so this CLI can return immediately
+			if err := launchCmd.Start(); err != nil {
+				fmt.Println("Error launching Android Studio on Windows:", err)
+			} else {
+				fmt.Printf("Launched '%s' in Android Studio (pid %d) using '%s'\n", projectName, launchCmd.Process.Pid, exePath)
+			}
+			return
 		default:
 			fmt.Println("Unsupported operating system for launching Android Studio.")
 			return
-		}
-
-		fmt.Printf("Launching '%s' in Android Studio...\n", projectName)
-		launchCmd.Stdout = os.Stdout
-		launchCmd.Stderr = os.Stderr
-		if err := launchCmd.Run(); err != nil {
-			fmt.Println("Error launching Android Studio:", err)
 		}
 	},
 }
@@ -377,4 +459,129 @@ var projectsCmd = &cobra.Command{
 			fmt.Println("No active projects found.")
 		}
 	},
+}
+
+// download-studio: fetch the latest Android Studio installer for the current OS
+var downloadStudioCmd = &cobra.Command{
+	Use:   "download-studio",
+	Short: "Download the latest Android Studio installer for your OS",
+	Run: func(cmd *cobra.Command, args []string) {
+		out, _ := cmd.Flags().GetString("out")
+
+		platform := detectStudioPlatform()
+		if platform == "" {
+			fmt.Println("Unsupported OS for automatic Android Studio download")
+			return
+		}
+
+		fmt.Printf("Looking up latest Android Studio download for %s...\n", platform)
+		downloadURL, err := findLatestAndroidStudioURL(platform)
+		if err != nil {
+			fmt.Println("Error finding download URL:", err)
+			return
+		}
+
+		fmt.Println("Found:", downloadURL)
+
+		// Determine output path
+		var outPath string
+		if out != "" {
+			outPath = out
+		} else {
+			// default to current dir with filename from URL
+			u, _ := url.Parse(downloadURL)
+			outPath = path.Base(u.Path)
+		}
+
+		fmt.Printf("Downloading to %s...\n", outPath)
+		resp, err := http.Get(downloadURL)
+		if err != nil {
+			fmt.Println("Download error:", err)
+			return
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			fmt.Printf("Download failed: status %d\n", resp.StatusCode)
+			return
+		}
+
+		f, err := os.Create(outPath)
+		if err != nil {
+			fmt.Println("Error creating file:", err)
+			return
+		}
+		defer f.Close()
+
+		_, err = io.Copy(f, resp.Body)
+		if err != nil {
+			fmt.Println("Error writing file:", err)
+			return
+		}
+
+		fmt.Println("Download complete:", outPath)
+	},
+}
+
+func init() {
+	downloadStudioCmd.Flags().StringP("out", "o", "", "Output path for the downloaded installer")
+}
+
+// detectStudioPlatform returns the platform string used on developer.android.com
+func detectStudioPlatform() string {
+	switch runtime.GOOS {
+	case "windows":
+		return "windows"
+	case "darwin":
+		return "mac"
+	case "linux":
+		return "linux"
+	default:
+		return ""
+	}
+}
+
+// findLatestAndroidStudioURL does a simple fetch of the Android Studio page and tries to extract a download URL for the platform.
+func findLatestAndroidStudioURL(platform string) (string, error) {
+	resp, err := http.Get("https://developer.android.com/studio")
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	// Look for URLs that point to archives/installer files. This is a heuristic and may need updates.
+	// Examples: https://redirector.gvt1.com/edgedl/android/studio/install/2023.1.1.15/android-studio-2023.1.1.15-windows.zip
+	re := regexp.MustCompile(`https?://[\w\-./]+android-studio[\w\-.]*(?:windows|mac|mac-arm|linux)[\w\-./]*\.(zip|exe|dmg|tar\.gz)`)
+	matches := re.FindAllString(string(body), -1)
+	if len(matches) == 0 {
+		// fallback: broader match for studio installer urls
+		re2 := regexp.MustCompile(`https?://[\w\-./]+android/studio[\w\-./]+\.(zip|exe|dmg|tar.gz)`)
+		matches = re2.FindAllString(string(body), -1)
+	}
+
+	if len(matches) == 0 {
+		return "", errors.New("no download URLs found on the Android Studio page")
+	}
+
+	// Prefer a match containing the platform word
+	for _, m := range matches {
+		lower := strings.ToLower(m)
+		if platform == "mac" && (strings.Contains(lower, "mac") || strings.Contains(lower, "dmg")) {
+			return m, nil
+		}
+		if platform == "windows" && (strings.Contains(lower, "windows") || strings.HasSuffix(lower, ".exe") || strings.HasSuffix(lower, ".zip")) {
+			return m, nil
+		}
+		if platform == "linux" && (strings.Contains(lower, "linux") || strings.HasSuffix(lower, ".tar.gz") || strings.HasSuffix(lower, ".zip")) {
+			return m, nil
+		}
+	}
+
+	// If no platform-specific match, return the first match
+	return matches[0], nil
 }
