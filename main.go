@@ -528,8 +528,26 @@ var downloadGitCmd = &cobra.Command{
 			fmt.Println("Error writing file:", err)
 			return
 		}
-
+		f.Close()
 		fmt.Println("Download complete:", out)
+		fmt.Println("Do you wish to install now? (y/N)")
+		var response string
+		fmt.Scanln(&response)
+
+		if strings.ToLower(response) == "y" {
+			fmt.Println("Starting installer...")
+			installCmd := exec.Command("./" + out)
+			installCmd.Stdout = os.Stdout
+			installCmd.Stderr = os.Stderr
+			if err := installCmd.Start(); err != nil {
+				fmt.Println("Error starting installer:", err)
+			} else {
+				fmt.Printf("Installer started (pid %d). Follow the prompts to complete installation.\n", installCmd.Process.Pid)
+
+			}
+		} else {
+			fmt.Println("You can run the installer later from:", out)
+		}
 	},
 }
 
@@ -628,6 +646,27 @@ var downloadRevCmd = &cobra.Command{
 		}
 
 		fmt.Println("Download complete:", out)
+		f.Close()
+
+		fmt.Println("Do you wish to install now? (y/N)")
+		var response string
+		fmt.Scanln(&response)
+
+		if strings.ToLower(response) == "y" {
+			fmt.Println("Starting installer...")
+			installCmd := exec.Command("./" + out)
+			installCmd.Stdout = os.Stdout
+			installCmd.Stderr = os.Stderr
+			if err := installCmd.Start(); err != nil {
+				fmt.Println("Error starting installer:", err)
+			} else {
+				fmt.Printf("Installer started (pid %d). Follow the prompts to complete installation.\n", installCmd.Process.Pid)
+
+			}
+		} else {
+			fmt.Println("You can run the installer later from:", out)
+		}
+
 	},
 }
 
@@ -733,6 +772,26 @@ var downloadStudioCmd = &cobra.Command{
 		}
 
 		fmt.Println("Download complete:", outPath)
+		f.Close()
+
+		fmt.Println("Do you wish to install now? (y/N)")
+		var response string
+		fmt.Scanln(&response)
+
+		if strings.ToLower(response) == "y" {
+			fmt.Println("Starting installer...")
+			installCmd := exec.Command("./" + out)
+			installCmd.Stdout = os.Stdout
+			installCmd.Stderr = os.Stderr
+			if err := installCmd.Start(); err != nil {
+				fmt.Println("Error starting installer:", err)
+			} else {
+				fmt.Printf("Installer started (pid %d). Follow the prompts to complete installation.\n", installCmd.Process.Pid)
+
+			}
+		} else {
+			fmt.Println("You can run the installer later from:", out)
+		}
 	},
 }
 
