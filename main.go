@@ -19,6 +19,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"sigs.k8s.io/yaml"
 )
 
 var (
@@ -80,6 +81,7 @@ func init() {
 	rootCmd.AddCommand(downloadStudioCmd)
 	rootCmd.AddCommand(downloadGitCmd)
 	rootCmd.AddCommand(downloadRevCmd)
+	rootCmd.AddCommand(configCmd)
 
 	initCmd.Flags().StringP("project", "p", "", "Name of the new project directory")
 	initCmd.Flags().StringP("git", "g", "", "Git repository URL to set up as remote")
@@ -193,12 +195,13 @@ var initCmd = &cobra.Command{
 
 		// Move contents up one level
 		subDir := filepath.Join(projectPath, fmt.Sprintf("FtcRobotController-%s", version))
-		if _, err := os.Stat(subDir); err == nil {
-			files, _ := ioutil.ReadDir(subDir)
+		subDirFixed := strings.Replace(subDir, "v", "", 1)
+		if _, err := os.Stat(subDirFixed); err == nil {
+			files, _ := os.ReadDir(subDirFixed)
 			for _, f := range files {
-				os.Rename(filepath.Join(subDir, f.Name()), filepath.Join(projectPath, f.Name()))
+				os.Rename(filepath.Join(subDirFixed, f.Name()), filepath.Join(projectPath, f.Name()))
 			}
-			os.Remove(subDir)
+			os.Remove(subDirFixed)
 		}
 
 		// Git setup
@@ -460,6 +463,27 @@ var projectsCmd = &cobra.Command{
 		if !found {
 			fmt.Println("No active projects found.")
 		}
+	},
+}
+
+// config: print current configuration as YAML
+var configCmd = &cobra.Command{
+	Use:   "config",
+	Short: "Print the current configuration as YAML",
+	Run: func(cmd *cobra.Command, args []string) {
+		settings := viper.AllSettings()
+		// Marshal to JSON first, then convert to YAML for pretty output
+		b, err := json.Marshal(settings)
+		if err != nil {
+			fmt.Println("Error marshaling config to JSON:", err)
+			return
+		}
+		y, err := yaml.JSONToYAML(b)
+		if err != nil {
+			fmt.Println("Error converting config to YAML:", err)
+			return
+		}
+		fmt.Println(string(y))
 	},
 }
 

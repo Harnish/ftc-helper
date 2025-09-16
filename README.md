@@ -97,6 +97,26 @@ Notes:
 - This command uses the GitHub Releases API and may be subject to rate limits for unauthenticated requests.
 - If you need a specific variant, download directly from the Git for Windows releases page and use the `--out` flag to save it via the tool.
 
+#### `download-rev`
+
+Downloads the REV Hardware Client installer referenced from the REV docs install page. By default the file is saved with the filename taken from the link; use `--out` to change the destination.
+
+```powershell
+ftc-helper download-rev
+ftc-helper download-rev --out C:\Downloads\REVHardwareClientInstaller.exe
+```
+
+Notes:
+- The command scrapes the REV docs page for links to installers. If REV changes the page structure it may need an update.
+
+#### `config`
+
+Prints the current runtime configuration (Viper settings) as YAML to stdout. This includes defaults, config file values (if loaded), environment variables, and flags bound to Viper.
+
+```powershell
+ftc-helper config > current-config.yaml
+```
+
 
 ### Configuration
 
