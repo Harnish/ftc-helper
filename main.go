@@ -78,6 +78,8 @@ func init() {
 	rootCmd.AddCommand(pushCmd)
 	rootCmd.AddCommand(projectsCmd)
 	rootCmd.AddCommand(downloadStudioCmd)
+	rootCmd.AddCommand(downloadGitCmd)
+	rootCmd.AddCommand(downloadRevCmd)
 
 	initCmd.Flags().StringP("project", "p", "", "Name of the new project directory")
 	initCmd.Flags().StringP("git", "g", "", "Git repository URL to set up as remote")
@@ -461,6 +463,194 @@ var projectsCmd = &cobra.Command{
 	},
 }
 
+// download-git: download the latest Git for Windows installer (64-bit) from GitHub releases
+var downloadGitCmd = &cobra.Command{
+	Use:   "download-git",
+	Short: "Download the latest Git for Windows installer (64-bit)",
+	Run: func(cmd *cobra.Command, args []string) {
+		out, _ := cmd.Flags().GetString("out")
+		fmt.Println("Looking up latest Git for Windows release...")
+		url, filename, err := findLatestGitForWindows()
+		if err != nil {
+			fmt.Println("Error finding Git for Windows release:", err)
+			return
+		}
+
+		if out == "" {
+			out = filename
+		}
+
+		fmt.Printf("Downloading %s to %s...\n", url, out)
+		resp, err := http.Get(url)
+		if err != nil {
+			fmt.Println("Download error:", err)
+			return
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			fmt.Printf("Download failed: status %d\n", resp.StatusCode)
+			return
+		}
+
+		f, err := os.Create(out)
+		if err != nil {
+			fmt.Println("Error creating file:", err)
+			return
+		}
+		defer f.Close()
+
+		_, err = io.Copy(f, resp.Body)
+		if err != nil {
+			fmt.Println("Error writing file:", err)
+			return
+		}
+
+		fmt.Println("Download complete:", out)
+	},
+}
+
+func init() {
+	downloadGitCmd.Flags().StringP("out", "o", "", "Output path for the downloaded Git installer")
+}
+
+// findLatestGitForWindows queries the Git for Windows GitHub releases and finds the latest 64-bit installer URL and filename.
+func findLatestGitForWindows() (string, string, error) {
+	apiURL := "https://api.github.com/repos/git-for-windows/git/releases/latest"
+	resp, err := http.Get(apiURL)
+	if err != nil {
+		return "", "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", "", fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	var data struct {
+		Assets []struct {
+			Name               string `json:"name"`
+			BrowserDownloadURL string `json:"browser_download_url"`
+		} `json:"assets"`
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", "", err
+	}
+
+	if err := json.Unmarshal(body, &data); err != nil {
+		return "", "", err
+	}
+
+	// Prefer 64-bit installer (MinGit vs Portable vs 64-bit setup). Typical names: Git-*-64-bit.exe, Git-*-64-bit-portable.zip
+	for _, a := range data.Assets {
+		lower := strings.ToLower(a.Name)
+		if strings.Contains(lower, "64-bit") && (strings.HasSuffix(lower, ".exe") || strings.HasSuffix(lower, ".msi")) {
+			return a.BrowserDownloadURL, a.Name, nil
+		}
+	}
+
+	// Fallback: look for installer .exe
+	for _, a := range data.Assets {
+		if strings.HasSuffix(strings.ToLower(a.Name), ".exe") {
+			return a.BrowserDownloadURL, a.Name, nil
+		}
+	}
+
+	return "", "", errors.New("no suitable Git for Windows installer found in latest release assets")
+}
+
+// download-rev: download the REV Hardware Client installer from the REV docs install page
+var downloadRevCmd = &cobra.Command{
+	Use:   "download-rev",
+	Short: "Download the REV Hardware Client installer from the REV docs page",
+	Run: func(cmd *cobra.Command, args []string) {
+		out, _ := cmd.Flags().GetString("out")
+		fmt.Println("Looking up REV Hardware Client installer...")
+		downloadURL, filename, err := findRevHardwareClientURL()
+		if err != nil {
+			fmt.Println("Error finding REV Hardware Client URL:", err)
+			return
+		}
+
+		if out == "" {
+			out = filename
+		}
+
+		fmt.Printf("Downloading %s to %s...\n", downloadURL, out)
+		resp, err := http.Get(downloadURL)
+		if err != nil {
+			fmt.Println("Download error:", err)
+			return
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			fmt.Printf("Download failed: status %d\n", resp.StatusCode)
+			return
+		}
+
+		f, err := os.Create(out)
+		if err != nil {
+			fmt.Println("Error creating file:", err)
+			return
+		}
+		defer f.Close()
+
+		_, err = io.Copy(f, resp.Body)
+		if err != nil {
+			fmt.Println("Error writing file:", err)
+			return
+		}
+
+		fmt.Println("Download complete:", out)
+	},
+}
+
+func init() {
+	downloadRevCmd.Flags().StringP("out", "o", "", "Output path for the downloaded REV installer")
+}
+
+// findRevHardwareClientURL scrapes the REV docs install page and returns a likely installer URL and filename.
+func findRevHardwareClientURL() (string, string, error) {
+	page := "https://docs.revrobotics.com/rev-hardware-client/gs/install"
+	resp, err := http.Get(page)
+	if err != nil {
+		return "", "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", "", fmt.Errorf("unexpected status: %d", resp.StatusCode)
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", "", err
+	}
+
+	// Heuristic: look for links ending with common installer extensions
+	re := regexp.MustCompile(`https?://[\w\-./]+\.(exe|msi|dmg|zip|tar.gz)`)
+	matches := re.FindAllString(string(body), -1)
+	if len(matches) == 0 {
+		return "", "", errors.New("no installer links found on REV install page")
+	}
+
+	// Prefer .exe or .msi for Windows
+	for _, m := range matches {
+		lower := strings.ToLower(m)
+		if strings.HasSuffix(lower, ".msi") || strings.HasSuffix(lower, ".exe") {
+			u, _ := url.Parse(m)
+			return m, path.Base(u.Path), nil
+		}
+	}
+
+	// fallback to first match
+	u, _ := url.Parse(matches[0])
+	return matches[0], path.Base(u.Path), nil
+}
+
 // download-studio: fetch the latest Android Studio installer for the current OS
 var downloadStudioCmd = &cobra.Command{
 	Use:   "download-studio",
@@ -549,18 +739,18 @@ func findLatestAndroidStudioURL(platform string) (string, error) {
 	}
 	defer resp.Body.Close()
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}
 
 	// Look for URLs that point to archives/installer files. This is a heuristic and may need updates.
-	// Examples: https://redirector.gvt1.com/edgedl/android/studio/install/2023.1.1.15/android-studio-2023.1.1.15-windows.zip
-	re := regexp.MustCompile(`https?://[\w\-./]+android-studio[\w\-.]*(?:windows|mac|mac-arm|linux)[\w\-./]*\.(zip|exe|dmg|tar\.gz)`)
+	// Examples: https://redirector.gvt1.com/edgedl/android/studio/install/2023.1.1.15/android-studio-2023.1.1.15-windows.msi
+	re := regexp.MustCompile(`https?://[\w\-./]+android-studio[\w\-.]*(?:windows|mac|mac-arm|linux)[\w\-./]*\.(exe|msi|dmg|tar\.gz)`)
 	matches := re.FindAllString(string(body), -1)
 	if len(matches) == 0 {
 		// fallback: broader match for studio installer urls
-		re2 := regexp.MustCompile(`https?://[\w\-./]+android/studio[\w\-./]+\.(zip|exe|dmg|tar.gz)`)
+		re2 := regexp.MustCompile(`https?://[\w\-./]+android/studio[\w\-./]+\.(exe|msi|dmg|tar.gz)`)
 		matches = re2.FindAllString(string(body), -1)
 	}
 
@@ -568,17 +758,32 @@ func findLatestAndroidStudioURL(platform string) (string, error) {
 		return "", errors.New("no download URLs found on the Android Studio page")
 	}
 
-	// Prefer a match containing the platform word
-	for _, m := range matches {
-		lower := strings.ToLower(m)
-		if platform == "mac" && (strings.Contains(lower, "mac") || strings.Contains(lower, "dmg")) {
-			return m, nil
+	// Prefer a match containing the platform word.
+	// On Windows prefer .msi installers when present, otherwise fallback to exe/zip.
+	if platform == "windows" {
+		// Look for MSI first
+		for _, m := range matches {
+			lower := strings.ToLower(m)
+			if strings.HasSuffix(lower, ".msi") {
+				return m, nil
+			}
 		}
-		if platform == "windows" && (strings.Contains(lower, "windows") || strings.HasSuffix(lower, ".exe") || strings.HasSuffix(lower, ".zip")) {
-			return m, nil
+		// Then prefer exe/zip or containing 'windows'
+		for _, m := range matches {
+			lower := strings.ToLower(m)
+			if strings.Contains(lower, "windows") || strings.HasSuffix(lower, ".exe") || strings.HasSuffix(lower, ".zip") {
+				return m, nil
+			}
 		}
-		if platform == "linux" && (strings.Contains(lower, "linux") || strings.HasSuffix(lower, ".tar.gz") || strings.HasSuffix(lower, ".zip")) {
-			return m, nil
+	} else {
+		for _, m := range matches {
+			lower := strings.ToLower(m)
+			if platform == "mac" && (strings.Contains(lower, "mac") || strings.Contains(lower, "dmg")) {
+				return m, nil
+			}
+			if platform == "linux" && (strings.Contains(lower, "linux") || strings.HasSuffix(lower, ".tar.gz") || strings.HasSuffix(lower, ".zip")) {
+				return m, nil
+			}
 		}
 	}
 
