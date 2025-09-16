@@ -101,7 +101,7 @@ func initConfig() {
 	if err := viper.ReadInConfig(); err != nil {
 		fmt.Println("No config file found. Using default values.")
 		home, _ := os.UserHomeDir()
-		viper.SetDefault("work_dir", home)
+		viper.SetDefault("work_dir", home+"/StudioProjects")
 	}
 }
 
