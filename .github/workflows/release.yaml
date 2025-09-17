@@ -1,0 +1,71 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'  # Triggers on tags like v1.0.0, v2.1.3, etc.
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.21'  # Adjust to your Go version
+        
+    - name: Get dependencies
+      run: go mod download
+      
+    - name: Run tests
+      run: go test ./...
+      
+    - name: Build for multiple platforms
+      run: |
+        # Linux AMD64
+        GOOS=linux GOARCH=amd64 go build -o ftc-helper-linux-amd64 .
+        
+        # Linux ARM64
+        GOOS=linux GOARCH=arm64 go build -o ftc-helper-linux-arm64 .
+        
+        # Windows AMD64
+        GOOS=windows GOARCH=amd64 go build -o ftc-helper-windows-amd64.exe .
+        
+        # macOS AMD64
+        GOOS=darwin GOARCH=amd64 go build -o ftc-helper-darwin-amd64 .
+        
+        # macOS ARM64 (Apple Silicon)
+        GOOS=darwin GOARCH=arm64 go build -o ftc-helper-darwin-arm64 .
+        
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        name: Release ${{ github.ref_name }}
+        body: |
+          ## Changes in ${{ github.ref_name }}
+          
+          ### Download for your platform:
+          - **Linux (x64)**: ftc-helper-linux-amd64
+          - **Linux (ARM64)**: ftc-helper-linux-arm64  
+          - **Windows (x64)**: ftc-helper-windows-amd64.exe
+          - **macOS (Intel)**: ftc-helper-darwin-amd64
+          - **macOS (Apple Silicon)**: ftc-helper-darwin-arm64
+          
+          ### Installation
+          1. Download the appropriate binary for your platform
+          2. Make it executable: `chmod +x ftc-helper-*` (Linux/macOS)
+          3. Move to your PATH or run directly
+        files: |
+          ftc-helper-linux-amd64
+          ftc-helper-linux-arm64
+          ftc-helper-windows-amd64.exe
+          ftc-helper-darwin-amd64
+          ftc-helper-darwin-arm64
+        draft: false
+        prerelease: ${{ contains(github.ref_name, '-') }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
