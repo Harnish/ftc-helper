@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -440,7 +441,7 @@ var projectsCmd = &cobra.Command{
 	Short: "Lists all active local projects",
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("Active projects in:", workDir)
-		projects, err := ioutil.ReadDir(workDir)
+		projects, err := os.ReadDir(workDir)
 		if err != nil {
 			fmt.Println("Error reading working directory:", err)
 			return
@@ -449,6 +450,7 @@ var projectsCmd = &cobra.Command{
 		found := false
 		for _, p := range projects {
 			if p.IsDir() {
+				log.Println("Dir ", p.Name(), "Checking")
 				projectPath := filepath.Join(workDir, p.Name())
 				teamCodePath := filepath.Join(projectPath, "TeamCode", "src", "main", "java", "org", "firstinspires", "ftc", "teamcode")
 
@@ -780,7 +782,8 @@ var downloadStudioCmd = &cobra.Command{
 
 		if strings.ToLower(response) == "y" {
 			fmt.Println("Starting installer...")
-			installCmd := exec.Command("./" + out)
+			fmt.Println(outPath)
+			installCmd := exec.Command("./" + outPath)
 			installCmd.Stdout = os.Stdout
 			installCmd.Stderr = os.Stderr
 			if err := installCmd.Start(); err != nil {
