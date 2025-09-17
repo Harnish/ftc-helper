@@ -1,0 +1,52 @@
+name: Build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        go_arch: ["amd64"]
+        exclude:
+          - os: macos-latest
+            go_arch: "386"
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.21'
+
+    - name: Get dependencies
+      run: go mod tidy
+
+    - name: Build
+      env:
+        GOOS: ${{ matrix.go_os }}
+        GOARCH: ${{ matrix.go_arch }}
+      run: |
+        if [[ "${matrix.os}" == "windows-latest" ]]; then
+          GOOS="windows"
+          EXTENSION=".exe"
+        else
+          EXTENSION=""
+        fi
+        go build -ldflags="-s -w" -o ftc-helper${EXTENSION} .
+
+    - name: Upload binaries to release
+      uses: svenstaro/upload-release-action@v2
+      if: github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'Release')
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        file: ftc-helper*
+        tag: ${{ github.ref_name }}
+        overwrite: true
+        file_glob: true
