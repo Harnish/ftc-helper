@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -450,7 +449,6 @@ var projectsCmd = &cobra.Command{
 		found := false
 		for _, p := range projects {
 			if p.IsDir() {
-				log.Println("Dir ", p.Name(), "Checking")
 				projectPath := filepath.Join(workDir, p.Name())
 				teamCodePath := filepath.Join(projectPath, "TeamCode", "src", "main", "java", "org", "firstinspires", "ftc", "teamcode")
 
@@ -532,24 +530,7 @@ var downloadGitCmd = &cobra.Command{
 		}
 		f.Close()
 		fmt.Println("Download complete:", out)
-		fmt.Println("Do you wish to install now? (y/N)")
-		var response string
-		fmt.Scanln(&response)
-
-		if strings.ToLower(response) == "y" {
-			fmt.Println("Starting installer...")
-			installCmd := exec.Command("./" + out)
-			installCmd.Stdout = os.Stdout
-			installCmd.Stderr = os.Stderr
-			if err := installCmd.Start(); err != nil {
-				fmt.Println("Error starting installer:", err)
-			} else {
-				fmt.Printf("Installer started (pid %d). Follow the prompts to complete installation.\n", installCmd.Process.Pid)
-
-			}
-		} else {
-			fmt.Println("You can run the installer later from:", out)
-		}
+		runBinary(out)
 	},
 }
 
@@ -649,25 +630,7 @@ var downloadRevCmd = &cobra.Command{
 
 		fmt.Println("Download complete:", out)
 		f.Close()
-
-		fmt.Println("Do you wish to install now? (y/N)")
-		var response string
-		fmt.Scanln(&response)
-
-		if strings.ToLower(response) == "y" {
-			fmt.Println("Starting installer...")
-			installCmd := exec.Command("./" + out)
-			installCmd.Stdout = os.Stdout
-			installCmd.Stderr = os.Stderr
-			if err := installCmd.Start(); err != nil {
-				fmt.Println("Error starting installer:", err)
-			} else {
-				fmt.Printf("Installer started (pid %d). Follow the prompts to complete installation.\n", installCmd.Process.Pid)
-
-			}
-		} else {
-			fmt.Println("You can run the installer later from:", out)
-		}
+		runBinary(out)
 
 	},
 }
@@ -689,7 +652,7 @@ func findRevHardwareClientURL() (string, string, error) {
 		return "", "", fmt.Errorf("unexpected status: %d", resp.StatusCode)
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", "", err
 	}
@@ -775,26 +738,7 @@ var downloadStudioCmd = &cobra.Command{
 
 		fmt.Println("Download complete:", outPath)
 		f.Close()
-
-		fmt.Println("Do you wish to install now? (y/N)")
-		var response string
-		fmt.Scanln(&response)
-
-		if strings.ToLower(response) == "y" {
-			fmt.Println("Starting installer...")
-			fmt.Println(outPath)
-			installCmd := exec.Command("./" + outPath)
-			installCmd.Stdout = os.Stdout
-			installCmd.Stderr = os.Stderr
-			if err := installCmd.Start(); err != nil {
-				fmt.Println("Error starting installer:", err)
-			} else {
-				fmt.Printf("Installer started (pid %d). Follow the prompts to complete installation.\n", installCmd.Process.Pid)
-
-			}
-		} else {
-			fmt.Println("You can run the installer later from:", out)
-		}
+		runBinary(outPath)
 	},
 }
 
@@ -874,4 +818,26 @@ func findLatestAndroidStudioURL(platform string) (string, error) {
 
 	// If no platform-specific match, return the first match
 	return matches[0], nil
+}
+
+func runBinary(path string) {
+
+	fmt.Println("Do you wish to install now? (y/N)")
+	var response string
+	fmt.Scanln(&response)
+
+	if strings.ToLower(response) == "y" {
+		fmt.Println("Starting installer...")
+		installCmd := exec.Command("./" + path)
+		installCmd.Stdout = os.Stdout
+		installCmd.Stderr = os.Stderr
+		if err := installCmd.Start(); err != nil {
+			fmt.Println("Error starting installer:", err)
+		} else {
+			fmt.Printf("Installer started (pid %d). Follow the prompts to complete installation.\n", installCmd.Process.Pid)
+
+		}
+	} else {
+		fmt.Println("You can run the installer later from:", path)
+	}
 }
