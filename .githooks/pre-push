@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# pre-push hook: if tags are being pushed, update VERSION file to the tag name
+set -e
+repo_root=$(git rev-parse --show-toplevel)
+changed=0
+
+while read local_ref local_sha remote_ref remote_sha
+do
+  case "$remote_ref" in
+    refs/tags/*)
+      tag=${remote_ref#refs/tags/}
+      echo "Detected tag being pushed: $tag"
+      # update VERSION file
+      echo "$tag" > "$repo_root/VERSION"
+      git -C "$repo_root" add VERSION
+      if git -C "$repo_root" diff --cached --quiet; then
+        echo "No changes to commit for VERSION"
+      else
+        git -C "$repo_root" commit -m "chore: update VERSION to $tag"
+        echo "Committed VERSION update. Pushing commit to origin..."
+        git -C "$repo_root" push origin HEAD || true
+      fi
+      changed=1
+      ;;
+  esac
+done
+
+if [ $changed -eq 1 ]; then
+  echo "VERSION updated for pushed tag(s). Continuing with push..."
+fi
+
+exit 0

@@ -7,6 +7,7 @@ The format is based on "Keep a Changelog" and this project follows Semantic Vers
 ## [Unreleased]
 
 ### Changed
+- updated changelog (de8ebad) — 2025-09-18
 - added tests to the code (64ecbf1) — 2025-09-18
 - added ability to automatically add changelog (f6ecee7) — 2025-09-18
 - removed debug code (dc501aa) — 2025-09-18
@@ -34,6 +35,7 @@ The format is based on "Keep a Changelog" and this project follows Semantic Vers
 Notes:
 - Entries are derived from recent commit messages. For more detail, see the git history.
 - To generate this file automatically in the future, consider using tools like git-cliff or semantic-release.
+
 
 
 

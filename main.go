@@ -82,6 +82,7 @@ func init() {
 	rootCmd.AddCommand(downloadGitCmd)
 	rootCmd.AddCommand(downloadRevCmd)
 	rootCmd.AddCommand(configCmd)
+	rootCmd.AddCommand(versionCmd)
 
 	initCmd.Flags().StringP("project", "p", "", "Name of the new project directory")
 	initCmd.Flags().StringP("git", "g", "", "Git repository URL to set up as remote")

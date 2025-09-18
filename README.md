@@ -136,3 +136,16 @@ Contributions are welcome! If you have any ideas, suggestions, or bug reports, p
 ## License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
+## Version command and automatic VERSION updates
+
+This repository provides a `version` CLI command and a git hook to keep a `VERSION` file
+in-sync with pushed tags.
+
+- Run the CLI command to print the version resolved from build flags, a `VERSION` file, or the latest tag:
+	- `ftc-helper version`
+- To enable automatic updates when pushing tags, enable the repository hooks:
+	- PowerShell: `pwsh -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-githooks.ps1`
+	- This will set `core.hooksPath` to `.githooks` so the `pre-push` hook runs and updates `VERSION` when tags are pushed.
+
+The hook will create a commit updating `VERSION` and attempt to push that commit before continuing the original push.
