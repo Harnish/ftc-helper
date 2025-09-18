@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Post-commit hook: update CHANGELOG.md using the repo script
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+"$REPO_ROOT/scripts/update-changelog.ps1" "$(git rev-parse --short HEAD)" 2>/dev/null || pwsh -File "$REPO_ROOT/scripts/update-changelog.ps1" "$(git rev-parse --short HEAD)"
