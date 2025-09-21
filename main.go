@@ -504,33 +504,11 @@ var downloadGitCmd = &cobra.Command{
 			out = filename
 		}
 
-		fmt.Printf("Downloading %s to %s...\n", url, out)
-		resp, err := http.Get(url)
+		err = downloadURLToPath(url, out)
 		if err != nil {
-			fmt.Println("Download error:", err)
+			fmt.Println("Error downloading Git for Windows:", err)
 			return
 		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			fmt.Printf("Download failed: status %d\n", resp.StatusCode)
-			return
-		}
-
-		f, err := os.Create(out)
-		if err != nil {
-			fmt.Println("Error creating file:", err)
-			return
-		}
-		defer f.Close()
-
-		_, err = io.Copy(f, resp.Body)
-		if err != nil {
-			fmt.Println("Error writing file:", err)
-			return
-		}
-		f.Close()
-		fmt.Println("Download complete:", out)
 		runBinary(out)
 	},
 }
@@ -711,34 +689,7 @@ var downloadStudioCmd = &cobra.Command{
 			outPath = path.Base(u.Path)
 		}
 
-		fmt.Printf("Downloading to %s...\n", outPath)
-		resp, err := http.Get(downloadURL)
-		if err != nil {
-			fmt.Println("Download error:", err)
-			return
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			fmt.Printf("Download failed: status %d\n", resp.StatusCode)
-			return
-		}
-
-		f, err := os.Create(outPath)
-		if err != nil {
-			fmt.Println("Error creating file:", err)
-			return
-		}
-		defer f.Close()
-
-		_, err = io.Copy(f, resp.Body)
-		if err != nil {
-			fmt.Println("Error writing file:", err)
-			return
-		}
-
-		fmt.Println("Download complete:", outPath)
-		f.Close()
+		downloadURLToPath(downloadURL, outPath)
 		runBinary(outPath)
 	},
 }
@@ -841,4 +792,35 @@ func runBinary(path string) {
 	} else {
 		fmt.Println("You can run the installer later from:", path)
 	}
+}
+
+func downloadURLToPath(url, out string) error {
+	fmt.Printf("Downloading %s to %s...\n", url, out)
+	resp, err := http.Get(url)
+	if err != nil {
+		fmt.Println("Download error:", err)
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		fmt.Printf("Download failed: status %d\n", resp.StatusCode)
+		return err
+	}
+
+	f, err := os.Create(out)
+	if err != nil {
+		fmt.Println("Error creating file:", err)
+		return err
+	}
+	defer f.Close()
+
+	_, err = io.Copy(f, resp.Body)
+	if err != nil {
+		fmt.Println("Error writing file:", err)
+		return err
+	}
+
+	fmt.Println("Download complete:", out)
+	return nil
 }
