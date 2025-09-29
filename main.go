@@ -81,6 +81,7 @@ func init() {
 	rootCmd.AddCommand(downloadStudioCmd)
 	rootCmd.AddCommand(downloadGitCmd)
 	rootCmd.AddCommand(downloadRevCmd)
+	rootCmd.AddCommand(downloadBambuCmd)
 	rootCmd.AddCommand(configCmd)
 	rootCmd.AddCommand(versionCmd)
 
