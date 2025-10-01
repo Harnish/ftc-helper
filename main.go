@@ -797,3 +797,53 @@ func downloadURLToPath(url, out string) error {
 	fmt.Println("Download complete:", out)
 	return nil
 }
+
+var downloadAllCmd = &cobra.Command{
+	Use:   "download-all",
+	Short: "Download all the latest tools for Windows installer (64-bit)",
+	Run: func(cmd *cobra.Command, args []string) {
+		downloadurl, filename, err := findLatestGitForWindows()
+		if err != nil {
+			fmt.Println("Error finding Git for Windows release:", err)
+			return
+		}
+		err = downloadURLToPath(downloadurl, filename)
+		if err != nil {
+			fmt.Println("Error downloading Git for Windows:", err)
+			return
+		}
+		runBinary(filename)
+
+		downloadurl, filename, err = findRevHardwareClientURL()
+		if err != nil {
+			fmt.Println("Error finding REV Hardware Client URL:", err)
+			return
+		}
+		err = downloadURLToPath(downloadurl, filename)
+		if err != nil {
+			fmt.Println("Error downloading REV Hardware Client installer:", err)
+			return
+		}
+		runBinary(filename)
+
+		platform := detectStudioPlatform()
+		if platform == "" {
+			fmt.Println("Unsupported OS for automatic Android Studio download")
+			return
+		}
+		downloadURL, err := findLatestAndroidStudioURL(platform)
+		if err != nil {
+			fmt.Println("Error finding download URL:", err)
+			return
+		}
+		u, _ := url.Parse(downloadURL)
+		filename = path.Base(u.Path)
+		err = downloadURLToPath(downloadURL, filename)
+		if err != nil {
+			fmt.Println("Error downloading Android Studio installer:", err)
+			return
+		}
+		runBinary(filename)
+
+	},
+}

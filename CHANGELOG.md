@@ -7,6 +7,7 @@ The format is based on "Keep a Changelog" and this project follows Semantic Vers
 ## [Unreleased]
 
 ### Changed
+- code dedup (8336cdb) — 2025-10-01
 - chore: update VERSION to v0.1.6 (a3d3bbd) — 2025-09-18
 - added version (f0e5029) — 2025-09-18
 - updated changelog (de8ebad) — 2025-09-18
@@ -37,6 +38,7 @@ The format is based on "Keep a Changelog" and this project follows Semantic Vers
 Notes:
 - Entries are derived from recent commit messages. For more detail, see the git history.
 - To generate this file automatically in the future, consider using tools like git-cliff or semantic-release.
+
 
 
 
