@@ -109,6 +109,24 @@ ftc-helper download-rev
 ftc-helper download-rev --out C:\Downloads\REVHardwareClientInstaller.exe
 ```
 
+#### `download-bambu`
+
+Download the latest BambuLab Studio installer for your OS. This scrapes the BambuLab download page and attempts to pick an appropriate installer for Windows (.exe/.msi), macOS (.dmg/.pkg), or Linux (.AppImage/.deb/.tar.gz).
+
+```powershell
+ftc-helper download-bambu
+ftc-helper download-bambu --out C:\Downloads\BambuStudioInstaller.exe
+```
+
+#### `download-all`
+
+Downloads several tools (Git for Windows, REV Hardware Client, Android Studio) in sequence and offers to run each installer. Intended as a convenience for provisioning a Windows workstation.
+
+```powershell
+ftc-helper download-all
+```
+
+
 Notes:
 - The command scrapes the REV docs page for links to installers. If REV changes the page structure it may need an update.
 
