@@ -516,6 +516,8 @@ var downloadGitCmd = &cobra.Command{
 
 func init() {
 	downloadGitCmd.Flags().StringP("out", "o", "", "Output path for the downloaded Git installer")
+	downloadStudioCmd.Flags().StringP("out", "o", "", "Output path for the downloaded installer")
+	downloadRevCmd.Flags().StringP("out", "o", "", "Output path for the downloaded REV installer")
 }
 
 // findLatestGitForWindows queries the Git for Windows GitHub releases and finds the latest 64-bit installer URL and filename.
@@ -583,40 +585,14 @@ var downloadRevCmd = &cobra.Command{
 		}
 
 		fmt.Printf("Downloading %s to %s...\n", downloadURL, out)
-		resp, err := http.Get(downloadURL)
+		err = downloadURLToPath(downloadURL, out)
 		if err != nil {
-			fmt.Println("Download error:", err)
+			fmt.Println("Error downloading REV Hardware Client installer:", err)
 			return
 		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			fmt.Printf("Download failed: status %d\n", resp.StatusCode)
-			return
-		}
-
-		f, err := os.Create(out)
-		if err != nil {
-			fmt.Println("Error creating file:", err)
-			return
-		}
-		defer f.Close()
-
-		_, err = io.Copy(f, resp.Body)
-		if err != nil {
-			fmt.Println("Error writing file:", err)
-			return
-		}
-
-		fmt.Println("Download complete:", out)
-		f.Close()
 		runBinary(out)
 
 	},
-}
-
-func init() {
-	downloadRevCmd.Flags().StringP("out", "o", "", "Output path for the downloaded REV installer")
 }
 
 // findRevHardwareClientURL scrapes the REV docs install page and returns a likely installer URL and filename.
@@ -693,10 +669,6 @@ var downloadStudioCmd = &cobra.Command{
 		downloadURLToPath(downloadURL, outPath)
 		runBinary(outPath)
 	},
-}
-
-func init() {
-	downloadStudioCmd.Flags().StringP("out", "o", "", "Output path for the downloaded installer")
 }
 
 // detectStudioPlatform returns the platform string used on developer.android.com
