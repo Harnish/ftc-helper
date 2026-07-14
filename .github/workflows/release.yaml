@@ -42,7 +42,7 @@ jobs:
         GOOS=darwin GOARCH=arm64 go build -o ftc-helper-darwin-arm64 .
         
     - name: Create Release
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v3
       with:
         name: Release ${{ github.ref_name }}
         body: |
