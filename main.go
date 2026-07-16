@@ -337,55 +337,54 @@ var launchCmd = &cobra.Command{
 	Short: "Launches a local project in Android Studio",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		projectName := args[0]
-		projectPath := filepath.Join(workDir, projectName)
-
-		if _, err := os.Stat(projectPath); os.IsNotExist(err) {
-			fmt.Println("Project not found:", projectName)
-			return
-		}
-
-		var launchCmd *exec.Cmd
-		switch runtime.GOOS {
-		case "darwin": // macOS
-			launchCmd = exec.Command("open", "-a", "Android Studio.app", projectPath)
-			launchCmd.Stdout = os.Stdout
-			launchCmd.Stderr = os.Stderr
-			if err := launchCmd.Start(); err != nil {
-				fmt.Println("Error launching Android Studio on macOS:", err)
-			} else {
-				fmt.Printf("Launched '%s' in Android Studio (pid %d)\n", projectName, launchCmd.Process.Pid)
-			}
-			return
-		case "linux":
-			launchCmd = exec.Command("android-studio", projectPath)
-			launchCmd.Stdout = os.Stdout
-			launchCmd.Stderr = os.Stderr
-			if err := launchCmd.Start(); err != nil {
-				fmt.Println("Error launching Android Studio on Linux:", err)
-			} else {
-				fmt.Printf("Launched '%s' in Android Studio (pid %d)\n", projectName, launchCmd.Process.Pid)
-			}
-			return
-		case "windows":
-			exePath, err := findAndroidStudioExe()
-			if err != nil {
-				fmt.Println(err)
-				return
-			}
-			launchCmd = exec.Command(exePath, projectPath)
-			// Start non-blocking so this CLI can return immediately
-			if err := launchCmd.Start(); err != nil {
-				fmt.Println("Error launching Android Studio on Windows:", err)
-			} else {
-				fmt.Printf("Launched '%s' in Android Studio (pid %d) using '%s'\n", projectName, launchCmd.Process.Pid, exePath)
-			}
-			return
-		default:
-			fmt.Println("Unsupported operating system for launching Android Studio.")
-			return
+		if err := runLaunch(args[0]); err != nil {
+			fmt.Println(friendlyError(err))
 		}
 	},
+}
+
+// runLaunch opens the given project in Android Studio for the current OS.
+func runLaunch(projectName string) error {
+	projectPath := filepath.Join(workDir, projectName)
+
+	if _, err := os.Stat(projectPath); os.IsNotExist(err) {
+		return fmt.Errorf("project not found: %s", projectName)
+	}
+
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "darwin": // macOS
+		cmd = exec.Command("open", "-a", "Android Studio.app", projectPath)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		if err := cmd.Start(); err != nil {
+			return fmt.Errorf("launching Android Studio on macOS: %w", err)
+		}
+		fmt.Printf("Launched '%s' in Android Studio (pid %d)\n", projectName, cmd.Process.Pid)
+		return nil
+	case "linux":
+		cmd = exec.Command("android-studio", projectPath)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		if err := cmd.Start(); err != nil {
+			return fmt.Errorf("launching Android Studio on Linux: %w", err)
+		}
+		fmt.Printf("Launched '%s' in Android Studio (pid %d)\n", projectName, cmd.Process.Pid)
+		return nil
+	case "windows":
+		exePath, err := findAndroidStudioExe()
+		if err != nil {
+			return err
+		}
+		cmd = exec.Command(exePath, projectPath)
+		if err := cmd.Start(); err != nil {
+			return fmt.Errorf("launching Android Studio on Windows: %w", err)
+		}
+		fmt.Printf("Launched '%s' in Android Studio (pid %d) using '%s'\n", projectName, cmd.Process.Pid, exePath)
+		return nil
+	default:
+		return errors.New("unsupported operating system for launching Android Studio")
+	}
 }
 
 // Mode 4: Pull from Upstream

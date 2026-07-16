@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -93,5 +94,25 @@ func TestRunInit_SkipsIfProjectAlreadyExists(t *testing.T) {
 	// since the project directory already exists.
 	if err := runInit("v11.0", "myproject", ""); err != nil {
 		t.Fatalf("expected no error for already-initialized project, got %v", err)
+	}
+}
+
+func TestRunLaunch_ProjectNotFound(t *testing.T) {
+	tmpDir, err := ioutil.TempDir("", "runlaunch-test")
+	if err != nil {
+		t.Fatalf("tmpdir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	origWorkDir := workDir
+	workDir = tmpDir
+	defer func() { workDir = origWorkDir }()
+
+	err = runLaunch("does-not-exist")
+	if err == nil {
+		t.Fatal("expected error for nonexistent project, got nil")
+	}
+	if !strings.Contains(err.Error(), "does-not-exist") {
+		t.Fatalf("expected error to mention project name, got: %v", err)
 	}
 }
