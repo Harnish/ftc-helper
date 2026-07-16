@@ -33,7 +33,7 @@ jobs:
         GOOS: ${{ matrix.go_os }}
         GOARCH: ${{ matrix.go_arch }}
       run: |
-        if [[ "${matrix.os}" == "windows-latest" ]]; then
+        if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
           GOOS="windows"
           EXTENSION=".exe"
         else
