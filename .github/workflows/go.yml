@@ -30,8 +30,8 @@ jobs:
 
     - name: Build
       env:
-        GOOS: ${{ matrix.go_os }}
         GOARCH: ${{ matrix.go_arch }}
+      shell: bash
       run: |
         if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
           GOOS="windows"
