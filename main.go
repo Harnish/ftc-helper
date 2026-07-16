@@ -116,22 +116,9 @@ var listCmd = &cobra.Command{
 	Use:   "list",
 	Short: "Lists available FTC releases",
 	Run: func(cmd *cobra.Command, args []string) {
-		resp, err := http.Get("https://api.github.com/repos/FIRST-Tech-Challenge/FtcRobotController/releases")
+		releases, err := fetchReleases()
 		if err != nil {
-			fmt.Println("Error fetching releases:", err)
-			return
-		}
-		defer resp.Body.Close()
-
-		body, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			fmt.Println("Error reading response body:", err)
-			return
-		}
-
-		var releases []Release
-		if err := json.Unmarshal(body, &releases); err != nil {
-			fmt.Println("Error parsing JSON:", err)
+			fmt.Println(friendlyError(err))
 			return
 		}
 
@@ -140,6 +127,26 @@ var listCmd = &cobra.Command{
 			fmt.Println("-", release.TagName)
 		}
 	},
+}
+
+// fetchReleases fetches the list of FTC Robot Controller releases from GitHub.
+func fetchReleases() ([]Release, error) {
+	resp, err := http.Get("https://api.github.com/repos/FIRST-Tech-Challenge/FtcRobotController/releases")
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var releases []Release
+	if err := json.Unmarshal(body, &releases); err != nil {
+		return nil, err
+	}
+	return releases, nil
 }
 
 // Mode 2: Initialize Project
