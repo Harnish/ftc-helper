@@ -2,9 +2,9 @@ name: Build
 
 on:
   push:
-    branches: [ main ]
+    branches: [ master ]
   pull_request:
-    branches: [ main ]
+    branches: [ master ]
 
 jobs:
   build:
@@ -43,7 +43,7 @@ jobs:
 
     - name: Upload binaries to release
       uses: svenstaro/upload-release-action@v2
-      if: github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'Release')
+      if: github.ref == 'refs/heads/master' && startsWith(github.event.head_commit.message, 'Release')
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
         file: ftc-helper*
