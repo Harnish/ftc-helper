@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/fatih/color"
@@ -55,8 +54,7 @@ func friendlyError(err error) string {
 // confirmRetry prompts the user with a yes/no question and returns true for
 // an affirmative answer. Any non-"y"/"yes" input (including read failure) is
 // treated as "no".
-func confirmRetry(prompt string) bool {
-	scanner := bufio.NewScanner(os.Stdin)
+func confirmRetry(scanner *bufio.Scanner, prompt string) bool {
 	fmt.Printf("%s (y/n): ", prompt)
 	if !scanner.Scan() {
 		return false

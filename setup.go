@@ -27,7 +27,7 @@ func runSetupWizard() {
 	reader := bufio.NewScanner(os.Stdin)
 
 	stepHeader(1, setupTotalSteps, "Installing Git")
-	setupStepWithRetry("Git", func() error {
+	setupStepWithRetry(reader, "Git", func() error {
 		if detectGitInstalled() {
 			ok("Git is already installed")
 			return nil
@@ -45,7 +45,7 @@ func runSetupWizard() {
 	})
 
 	stepHeader(2, setupTotalSteps, "Installing Android Studio")
-	setupStepWithRetry("Android Studio", func() error {
+	setupStepWithRetry(reader, "Android Studio", func() error {
 		if _, err := findAndroidStudioExe(); err == nil {
 			ok("Android Studio is already installed")
 			return nil
@@ -69,7 +69,7 @@ func runSetupWizard() {
 	})
 
 	stepHeader(3, setupTotalSteps, "Installing REV Hardware Client")
-	setupStepWithRetry("REV Hardware Client", func() error {
+	setupStepWithRetry(reader, "REV Hardware Client", func() error {
 		if detectRevInstalled() {
 			ok("REV Hardware Client is already installed")
 			return nil
@@ -87,9 +87,19 @@ func runSetupWizard() {
 	})
 
 	stepHeader(4, setupTotalSteps, "Creating your project")
-	fmt.Print("What do you want to name your project? ")
-	reader.Scan()
-	projectName := strings.TrimSpace(reader.Text())
+	var projectName string
+	for {
+		fmt.Print("What do you want to name your project? ")
+		if !reader.Scan() {
+			fmt.Println("\nNo input received. Stopping setup.")
+			return
+		}
+		projectName = strings.TrimSpace(reader.Text())
+		if projectName != "" {
+			break
+		}
+		fmt.Println("Project name can't be empty.")
+	}
 
 	version := latestReleaseTag()
 	fmt.Printf("Using FTC version %s. Press enter to accept, or type a different version: ", version)
@@ -98,7 +108,7 @@ func runSetupWizard() {
 		version = v
 	}
 
-	created := setupStepWithRetry("project creation", func() error {
+	created := setupStepWithRetry(reader, "project creation", func() error {
 		return runInit(version, projectName, "")
 	})
 	if !created {
@@ -119,14 +129,14 @@ func runSetupWizard() {
 // setupStepWithRetry runs action, and on error shows a friendly message and
 // asks whether to retry. Returns true once action succeeds, false if the
 // user declines to retry.
-func setupStepWithRetry(label string, action func() error) bool {
+func setupStepWithRetry(scanner *bufio.Scanner, label string, action func() error) bool {
 	for {
 		err := action()
 		if err == nil {
 			return true
 		}
 		fail(friendlyError(err))
-		if !confirmRetry("Try " + label + " again?") {
+		if !confirmRetry(scanner, "Try "+label+" again?") {
 			fmt.Println("Skipping " + label + " for now. Run 'ftc-helper setup' again later to retry.")
 			return false
 		}
