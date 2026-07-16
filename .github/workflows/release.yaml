@@ -16,7 +16,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v6
       with:
-        go-version: '1.21'  # Adjust to your Go version
+        go-version: '1.25'  # must be >= the "go" directive in go.mod
         
     - name: Get dependencies
       run: go mod download
