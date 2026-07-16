@@ -22,6 +22,14 @@ FTC Helper is a command-line interface (CLI) tool designed to streamline the dev
 
 ### Commands
 
+#### `setup`
+
+Guided first-time setup. Installs Git, Android Studio, and REV Hardware Client if they're not already on your computer (skipping anything already installed), then asks for a project name and FTC version and creates and launches your project. Recommended for first-time setup on a new laptop.
+
+```bash
+ftc-helper setup
+```
+
 #### `list`
 
 Lists all available FTC Robot Controller releases.
