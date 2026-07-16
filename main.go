@@ -75,6 +75,7 @@ func init() {
 	rootCmd.AddCommand(listCmd)
 	rootCmd.AddCommand(initCmd)
 	rootCmd.AddCommand(launchCmd)
+	rootCmd.AddCommand(setupCmd)
 	rootCmd.AddCommand(pullCmd)
 	rootCmd.AddCommand(pushCmd)
 	rootCmd.AddCommand(projectsCmd)
