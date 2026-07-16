@@ -72,3 +72,26 @@ func TestExtractZip(t *testing.T) {
 		t.Fatalf("extracted content mismatch: %s", string(got))
 	}
 }
+
+func TestRunInit_SkipsIfProjectAlreadyExists(t *testing.T) {
+	tmpDir, err := ioutil.TempDir("", "runinit-test")
+	if err != nil {
+		t.Fatalf("tmpdir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	origWorkDir := workDir
+	workDir = tmpDir
+	defer func() { workDir = origWorkDir }()
+
+	teamCodePath := filepath.Join(tmpDir, "myproject", "TeamCode", "src", "main", "java", "org", "firstinspires", "ftc", "teamcode")
+	if err := os.MkdirAll(teamCodePath, 0755); err != nil {
+		t.Fatalf("mkdir teamCodePath: %v", err)
+	}
+
+	// Should return nil immediately without attempting any network download,
+	// since the project directory already exists.
+	if err := runInit("v11.0", "myproject", ""); err != nil {
+		t.Fatalf("expected no error for already-initialized project, got %v", err)
+	}
+}

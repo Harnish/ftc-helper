@@ -164,80 +164,91 @@ var initCmd = &cobra.Command{
 			return
 		}
 
-		projectPath := filepath.Join(workDir, projectName)
-		zipURL := fmt.Sprintf("https://github.com/FIRST-Tech-Challenge/FtcRobotController/archive/refs/tags/%s.zip", version)
-
-		fmt.Printf("Downloading %s to %s...\n", zipURL, projectPath)
-		resp, err := http.Get(zipURL)
-		if err != nil {
-			fmt.Println("Error downloading file:", err)
-			return
+		if err := runInit(version, projectName, gitURL); err != nil {
+			fmt.Println(friendlyError(err))
 		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			fmt.Printf("Error: Received status code %d\n", resp.StatusCode)
-			return
-		}
-
-		// Save the zip file
-		zipFile, err := ioutil.TempFile("", "ftc-*.zip")
-		if err != nil {
-			fmt.Println("Error creating temp file:", err)
-			return
-		}
-		defer os.Remove(zipFile.Name())
-		defer zipFile.Close()
-
-		_, err = io.Copy(zipFile, resp.Body)
-		if err != nil {
-			fmt.Println("Error writing to temp file:", err)
-			return
-		}
-
-		// Unzip the file
-		fmt.Println("Extracting files...")
-		if err := extractZip(zipFile.Name(), projectPath); err != nil {
-			fmt.Println("Error extracting zip:", err)
-			return
-		}
-
-		// Move contents up one level
-		subDir := filepath.Join(projectPath, fmt.Sprintf("FtcRobotController-%s", version))
-		subDirFixed := strings.Replace(subDir, "v", "", 1)
-		if _, err := os.Stat(subDirFixed); err == nil {
-			files, _ := os.ReadDir(subDirFixed)
-			for _, f := range files {
-				os.Rename(filepath.Join(subDirFixed, f.Name()), filepath.Join(projectPath, f.Name()))
-			}
-			os.Remove(subDirFixed)
-		}
-
-		// Git setup
-
-		teamCodePath := filepath.Join(projectPath, "TeamCode", "src", "main", "java", "org", "firstinspires", "ftc", "teamcode")
-		fmt.Println("Initializing git repository...")
-		cmdGit := exec.Command("git", "init")
-		cmdGit.Dir = teamCodePath
-		if err := cmdGit.Run(); err != nil {
-			fmt.Println("Error initializing git repo:", err)
-		}
-
-		if gitURL != "" {
-			fmt.Printf("Setting up remote to %s...\n", gitURL)
-			remoteURL := gitURL
-			if !strings.HasPrefix(gitURL, "https://") && !strings.HasPrefix(gitURL, "git@") {
-				remoteURL = "https://" + gitURL
-			}
-			cmdGitRemote := exec.Command("git", "remote", "add", "origin", remoteURL)
-			cmdGitRemote.Dir = teamCodePath
-			if err := cmdGitRemote.Run(); err != nil {
-				fmt.Println("Error adding git remote:", err)
-			}
-		}
-
-		fmt.Println("Project setup complete!")
 	},
+}
+
+// runInit downloads the given FTC Robot Controller release, extracts it into
+// workDir/projectName, and initializes a git repo in the TeamCode directory.
+// If the project's TeamCode directory already exists, it returns nil
+// immediately without re-downloading anything (idempotent / resumable).
+func runInit(version, projectName, gitURL string) error {
+	projectPath := filepath.Join(workDir, projectName)
+	teamCodePath := filepath.Join(projectPath, "TeamCode", "src", "main", "java", "org", "firstinspires", "ftc", "teamcode")
+
+	if _, err := os.Stat(teamCodePath); err == nil {
+		fmt.Println("Project already exists, skipping download.")
+		return nil
+	}
+
+	zipURL := fmt.Sprintf("https://github.com/FIRST-Tech-Challenge/FtcRobotController/archive/refs/tags/%s.zip", version)
+
+	fmt.Printf("Downloading %s to %s...\n", zipURL, projectPath)
+	resp, err := http.Get(zipURL)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("received status code %d", resp.StatusCode)
+	}
+
+	// Save the zip file
+	zipFile, err := ioutil.TempFile("", "ftc-*.zip")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(zipFile.Name())
+	defer zipFile.Close()
+
+	_, err = io.Copy(zipFile, resp.Body)
+	if err != nil {
+		return err
+	}
+
+	// Unzip the file
+	fmt.Println("Extracting files...")
+	if err := extractZip(zipFile.Name(), projectPath); err != nil {
+		return err
+	}
+
+	// Move contents up one level
+	subDir := filepath.Join(projectPath, fmt.Sprintf("FtcRobotController-%s", version))
+	subDirFixed := strings.Replace(subDir, "v", "", 1)
+	if _, err := os.Stat(subDirFixed); err == nil {
+		files, _ := os.ReadDir(subDirFixed)
+		for _, f := range files {
+			os.Rename(filepath.Join(subDirFixed, f.Name()), filepath.Join(projectPath, f.Name()))
+		}
+		os.Remove(subDirFixed)
+	}
+
+	// Git setup
+	fmt.Println("Initializing git repository...")
+	cmdGit := exec.Command("git", "init")
+	cmdGit.Dir = teamCodePath
+	if err := cmdGit.Run(); err != nil {
+		return fmt.Errorf("initializing git repo: %w", err)
+	}
+
+	if gitURL != "" {
+		fmt.Printf("Setting up remote to %s...\n", gitURL)
+		remoteURL := gitURL
+		if !strings.HasPrefix(gitURL, "https://") && !strings.HasPrefix(gitURL, "git@") {
+			remoteURL = "https://" + gitURL
+		}
+		cmdGitRemote := exec.Command("git", "remote", "add", "origin", remoteURL)
+		cmdGitRemote.Dir = teamCodePath
+		if err := cmdGitRemote.Run(); err != nil {
+			return fmt.Errorf("adding git remote: %w", err)
+		}
+	}
+
+	fmt.Println("Project setup complete!")
+	return nil
 }
 
 func extractZip(src, dest string) error {
